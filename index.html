@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="description" content="Eenvoudige kilometerregistratie per maand met CSV-export.">
+<meta name="description" content="Eenvoudige kilometerregistratie per maand met export naar Excel/Numbers.">
 <title>Kilometerregistratie</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpath d='M7 22h18M9 22l2-8h10l2 8M11 14l1.5-4h7L21 14' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f3864'/%3E%3Cpath d='M7 22h18M9 22l2-8h10l2 8M11 14l1.5-4h7L21 14' stroke='white' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
   :root {
     --bg: #f4f5f7;
@@ -15,11 +15,12 @@
     --border: #dfe2e8;
     --text: #1a1d23;
     --muted: #626a78;
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
+    --primary: #1f3864;
+    --primary-hover: #2a4a82;
     --primary-text: #ffffff;
+    --accent: #2563eb;
+    --km-bg: #fff6dc;
     --danger: #c62828;
-    --danger-hover: #a31f1f;
     --danger-soft: #fdecec;
     --warn-bg: #fff6e0;
     --warn-text: #7a5300;
@@ -36,11 +37,12 @@
       --border: #2e333d;
       --text: #e8eaee;
       --muted: #9aa2b1;
-      --primary: #4f8cff;
-      --primary-hover: #6b9eff;
-      --primary-text: #0b1020;
+      --primary: #4f7fd1;
+      --primary-hover: #6b95e0;
+      --primary-text: #ffffff;
+      --accent: #4f8cff;
+      --km-bg: #2d2817;
       --danger: #ef5350;
-      --danger-hover: #ff6f6c;
       --danger-soft: #3a1c1c;
       --warn-bg: #3a2f12;
       --warn-text: #f3d48a;
@@ -84,10 +86,9 @@
   }
   input:focus, select:focus, button:focus-visible, summary:focus-visible {
     outline: none;
-    border-color: var(--primary);
+    border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--focus);
   }
-  input[readonly] { background: var(--surface-2); }
   input.invalid { border-color: var(--danger); background: var(--danger-soft); }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -100,10 +101,7 @@
   .btn:disabled { opacity: .5; cursor: not-allowed; }
   .btn-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-text); }
   .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
-  .btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
-  .btn-danger:hover { background: var(--danger-hover); border-color: var(--danger-hover); }
-  .btn-danger-outline { color: var(--danger); border-color: var(--danger); background: transparent; }
-  .btn-danger-outline:hover { background: var(--danger-soft); }
+  .btn-link { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 4px; font-weight: 500; text-decoration: underline; }
   .btn-icon { padding: 8px; min-width: 42px; }
   .btn svg { width: 18px; height: 18px; flex: none; }
 
@@ -116,30 +114,31 @@
   /* Settings */
   details.settings summary {
     cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;
-    font-weight: 600; border-radius: 8px; padding: 2px;
+    font-weight: 600; border-radius: 8px; padding: 2px; min-width: 0;
   }
   details.settings summary::-webkit-details-marker { display: none; }
-  details.settings summary .chev { margin-left: auto; transition: transform .15s; }
+  details.settings summary .chev { margin-left: auto; flex: none; transition: transform .15s; }
   details.settings[open] summary .chev { transform: rotate(180deg); }
-  details.settings summary .rate-badge { font-weight: 400; color: var(--muted); }
-  .settings-body { margin-top: 12px; display: grid; gap: 6px; max-width: 320px; }
+  details.settings summary .badge { font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .settings-body { margin-top: 12px; display: grid; gap: 14px; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .settings-body .field { display: grid; gap: 6px; align-content: start; }
+  .settings-body label { font-weight: 600; font-size: .9rem; }
   .euro-input { position: relative; }
   .euro-input span { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); }
   .euro-input input { padding-left: 26px; }
 
-  /* Banners */
   .banner { border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; background: var(--warn-bg); color: var(--warn-text); }
   .banner[hidden] { display: none; }
 
   /* Trips */
   .trips-head, .trip {
     display: grid;
-    grid-template-columns: 150px minmax(0,1fr) minmax(0,1fr) minmax(0,.8fr) 88px 100px 156px;
+    grid-template-columns: 148px minmax(0,1fr) minmax(0,1.3fr) 80px 80px 80px 96px 148px;
     gap: 8px;
     align-items: center;
   }
   .trips-head {
-    padding: 0 14px 6px; font-size: .8rem; font-weight: 600; color: var(--muted);
+    padding: 0 14px 6px; font-size: .78rem; font-weight: 600; color: var(--muted);
     text-transform: uppercase; letter-spacing: .03em;
   }
   .trips-head .r { text-align: right; }
@@ -149,13 +148,16 @@
     padding: 8px 14px; box-shadow: var(--shadow);
     transition: box-shadow .4s, border-color .4s;
   }
-  .trip.flash { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus); }
+  .trip.flash { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus); }
   .trip .f { display: block; min-width: 0; }
   .trip .lbl { display: none; }
-  .trip .f-km input { text-align: right; }
-  .trip .amount { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; padding: 0 2px; white-space: nowrap; }
+  .trip .f-out input, .trip .f-back input { text-align: right; background: var(--km-bg); }
+  .trip .f-out input.invalid { background: var(--danger-soft); }
+  .trip .num { text-align: right; font-variant-numeric: tabular-nums; padding: 0 2px; white-space: nowrap; }
+  .trip .amount { font-weight: 600; }
   .trip .actions { display: flex; gap: 6px; justify-content: flex-end; }
   .trip .btn-retour { padding: 8px 10px; font-weight: 500; }
+  .trip .btn-retour[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
   .trip .btn-del { color: var(--danger); }
   .trip .btn-del:hover { background: var(--danger-soft); }
   .req { color: var(--danger); }
@@ -169,78 +171,66 @@
   /* Totals */
   .totals {
     position: sticky; bottom: 0; z-index: 5;
-    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap;
     padding: 12px 14px;
-    margin: 0 -2px 14px;
     padding-bottom: calc(12px + env(safe-area-inset-bottom));
   }
   .totals .t { display: flex; flex-direction: column; }
-  .totals .t .v { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .totals .t .k { font-size: .8rem; color: var(--muted); }
+  .totals .t .v { font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .totals .t .k { font-size: .78rem; color: var(--muted); }
+  .totals .t.main .v { color: var(--primary); }
+  @media (prefers-color-scheme: dark) { .totals .t.main .v { color: var(--text); } }
   .totals .spacer { flex: 1; }
 
-  .export-card { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .export-card { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
   .export-card .status { flex: 1 1 220px; }
   .status.ok { color: var(--ok); }
   .status.warn { color: var(--warn-text); }
 
-  .danger-zone { margin-top: 40px; border-color: var(--danger); background: transparent; box-shadow: none; }
-  .danger-zone h2 { font-size: 1rem; margin: 0 0 4px; color: var(--danger); }
-  .danger-zone p { margin: 0 0 12px; }
-
   /* Toast */
   .toast {
-    width: max-content;
     position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+    width: max-content; max-width: calc(100% - 32px);
     background: var(--text); color: var(--bg); padding: 10px 14px; border-radius: 10px;
-    display: flex; gap: 12px; align-items: center; max-width: calc(100% - 32px);
+    display: flex; gap: 12px; align-items: center;
     opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 20;
     box-shadow: 0 6px 24px rgba(0,0,0,.25);
   }
   .toast.show { opacity: 1; transform: translateX(-50%); pointer-events: auto; }
-  .toast button { background: none; border: 0; color: var(--primary); font-weight: 700; cursor: pointer; padding: 4px; }
+  .toast button { background: none; border: 0; color: #4f8cff; font-weight: 700; cursor: pointer; padding: 4px; }
   @media (prefers-color-scheme: dark) { .toast button { color: #1d4ed8; } }
 
-  /* Dialog */
-  dialog {
-    border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;
-    background: var(--surface); color: var(--text); max-width: 460px; width: calc(100% - 32px);
-  }
-  dialog::backdrop { background: rgba(0,0,0,.5); }
-  dialog h2 { margin: 0 0 10px; font-size: 1.15rem; }
-  dialog .warn-box { background: var(--warn-bg); color: var(--warn-text); border-radius: 8px; padding: 10px 12px; margin: 12px 0; }
-  dialog .warn-box[hidden] { display: none; }
-  dialog .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 16px; }
-
-  /* Mobile: cards */
-  @media (max-width: 860px) {
+  /* Mobile: kaarten */
+  @media (max-width: 900px) {
     .trips-head { display: none; }
     .trip {
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       grid-template-areas:
-        "date km"
-        "from from"
-        "to to"
-        "client client"
-        "amount actions";
-      gap: 10px 10px;
+        "date date date"
+        "place place place"
+        "loc loc loc"
+        "out back total"
+        "amount actions actions";
+      gap: 10px;
       padding: 12px;
     }
     .trip .lbl { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
     .trip .f-date { grid-area: date; }
-    .trip .f-km { grid-area: km; }
-    .trip .f-from { grid-area: from; }
-    .trip .f-to { grid-area: to; }
-    .trip .f-client { grid-area: client; }
+    .trip .f-place { grid-area: place; }
+    .trip .f-loc { grid-area: loc; }
+    .trip .f-out { grid-area: out; }
+    .trip .f-back { grid-area: back; }
+    .trip .f-total { grid-area: total; }
     .trip .f-amount { grid-area: amount; }
     .trip .f-actions { grid-area: actions; }
-    .trip .amount { text-align: left; font-size: 1.1rem; }
-    .trip .f-km input { text-align: left; }
+    .trip .num { text-align: left; min-height: 42px; display: flex; align-items: center; }
+    .trip .f-amount .num { font-size: 1.1rem; min-height: 0; }
+    .trip .f-out input, .trip .f-back input { text-align: left; }
     .month-nav .today { display: none; }
+    .settings-body { grid-template-columns: 1fr; }
   }
   @media (max-width: 380px) {
     .month-nav .year { flex-basis: 88px; }
-    .trip .btn-retour .txt { display: none; }
   }
 </style>
 </head>
@@ -252,7 +242,7 @@
   </h1>
 
   <div class="banner" id="storageBanner" hidden>
-    Let op: deze browser staat opslaan niet toe (bijvoorbeeld in privémodus). Je invoer gaat verloren als je de pagina sluit. Exporteer op tijd naar CSV.
+    Let op: deze browser staat opslaan niet toe (bijvoorbeeld in privémodus). Je invoer gaat verloren als je de pagina sluit. Exporteer op tijd.
   </div>
 
   <section class="card" aria-label="Maand kiezen">
@@ -271,27 +261,35 @@
 
   <details class="card settings" id="settings">
     <summary>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Instellingen
-      <span class="rate-badge" id="rateBadge"></span>
+      <span class="badge" id="settingsBadge"></span>
       <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
     </summary>
     <div class="settings-body">
-      <label for="rateInput">Vergoeding per km</label>
-      <div class="euro-input">
-        <span>€</span>
-        <input id="rateInput" type="text" inputmode="decimal" autocomplete="off" aria-describedby="rateHelp">
+      <div class="field">
+        <label for="homeInput">Vertrekadres (thuis)</label>
+        <input id="homeInput" type="text" autocomplete="street-address" placeholder="Straat 1, 1234 AB">
+        <div class="small muted">Wordt bij elke rit als vertrekadres in de export gezet.</div>
       </div>
-      <div class="small muted" id="rateHelp">Standaard € 0,23. Een wijziging herberekent direct alle bedragen.</div>
+      <div class="field">
+        <label for="rateInput">Vergoeding per km</label>
+        <div class="euro-input">
+          <span>€</span>
+          <input id="rateInput" type="text" inputmode="decimal" autocomplete="off">
+        </div>
+        <div class="small muted">Standaard € 0,23.</div>
+      </div>
     </div>
   </details>
 
   <div class="trips-head" aria-hidden="true">
     <div>Datum <span class="req">*</span></div>
-    <div>Vertrekadres</div>
-    <div>Bestemmingsadres</div>
-    <div>Klant</div>
-    <div class="r">Km <span class="req">*</span></div>
+    <div>Plaats</div>
+    <div>Theater / locatie</div>
+    <div class="r">Heen <span class="req">*</span></div>
+    <div class="r">Retour</div>
+    <div class="r">Totaal</div>
     <div class="r">Bedrag</div>
     <div></div>
   </div>
@@ -301,6 +299,9 @@
     Klik op “Rit toevoegen” om je eerste rit in te voeren.
   </div>
 
+  <datalist id="placeList"></datalist>
+  <datalist id="locList"></datalist>
+
   <div class="add-row">
     <button class="btn btn-primary" id="addTrip" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -308,56 +309,38 @@
     </button>
   </div>
 
-  <section class="card totals" aria-label="Totalen">
-    <div class="t"><span class="v" id="totalKm">0 km</span><span class="k">Totaal kilometers</span></div>
-    <div class="t"><span class="v" id="totalAmount">€ 0,00</span><span class="k" id="totalSub">Totaal bedrag</span></div>
+  <section class="card totals" aria-label="Maandtotaal">
+    <div class="t"><span class="v" id="totalOut">0</span><span class="k">Heen (km)</span></div>
+    <div class="t"><span class="v" id="totalBack">0</span><span class="k">Retour (km)</span></div>
+    <div class="t main"><span class="v" id="totalKm">0 km</span><span class="k">Maandtotaal</span></div>
+    <div class="t main"><span class="v" id="totalAmount">€ 0,00</span><span class="k" id="totalSub">Bedrag</span></div>
     <div class="spacer"></div>
-    <div class="small muted" id="tripCount">0 ritten</div>
+    <div class="small muted" id="tripCount"></div>
   </section>
 
   <section class="card export-card" aria-label="Exporteren">
-    <button class="btn btn-primary" id="exportCsv" type="button">
+    <button class="btn btn-primary" id="exportXlsx" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-      Exporteer naar CSV
+      Exporteer naar Excel / Numbers
     </button>
+    <button class="btn-link small" id="exportCsv" type="button">of als CSV</button>
     <div class="status small" id="exportStatus"></div>
   </section>
-
-  <section class="card danger-zone" aria-label="Maand legen">
-    <h2>Maand legen</h2>
-    <p class="small muted">Verwijdert alle ritten van <span id="dangerMonth"></span>. Andere maanden en het tarief blijven staan.</p>
-    <button class="btn btn-danger-outline" id="clearMonth" type="button">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>
-      Maand legen
-    </button>
-  </section>
 </div>
-
-<dialog id="clearDialog" aria-labelledby="clearTitle">
-  <form method="dialog">
-    <h2 id="clearTitle">Maand legen?</h2>
-    <p id="clearMsg"></p>
-    <div class="warn-box" id="clearWarn" hidden></div>
-    <div class="dlg-actions">
-      <button class="btn" value="cancel" autofocus>Annuleren</button>
-      <button class="btn" value="export" id="clearExport">Eerst exporteren</button>
-      <button class="btn btn-danger" value="confirm">Ja, alles verwijderen</button>
-    </div>
-  </form>
-</dialog>
 
 <div class="toast" id="toast" role="status"><span id="toastMsg"></span><button type="button" id="toastAction" hidden></button></div>
 
 <template id="tripTpl">
   <div class="trip">
     <label class="f f-date"><span class="lbl">Datum <span class="req">*</span></span><input type="date" data-field="date" required></label>
-    <label class="f f-from"><span class="lbl">Vertrekadres</span><input type="text" data-field="from" autocomplete="off" placeholder="Vertrekadres"></label>
-    <label class="f f-to"><span class="lbl">Bestemmingsadres</span><input type="text" data-field="to" autocomplete="off" placeholder="Bestemmingsadres"></label>
-    <label class="f f-client"><span class="lbl">Klant</span><input type="text" data-field="client" autocomplete="off" placeholder="Klant"></label>
-    <label class="f f-km"><span class="lbl">Kilometers <span class="req">*</span></span><input type="text" data-field="km" inputmode="decimal" autocomplete="off" placeholder="0" required></label>
-    <div class="f f-amount"><span class="lbl">Bedrag</span><div class="amount" aria-label="Bedrag">€ 0,00</div></div>
+    <label class="f f-place"><span class="lbl">Plaats</span><input type="text" data-field="place" list="placeList" autocomplete="off" placeholder="Plaats"></label>
+    <label class="f f-loc"><span class="lbl">Theater / locatie</span><input type="text" data-field="location" list="locList" autocomplete="off" placeholder="Theater / locatie"></label>
+    <label class="f f-out"><span class="lbl">Heen (km) <span class="req">*</span></span><input type="text" data-field="out" inputmode="decimal" autocomplete="off" placeholder="0" required></label>
+    <label class="f f-back"><span class="lbl">Retour (km)</span><input type="text" data-field="back" inputmode="decimal" autocomplete="off" placeholder="–"></label>
+    <div class="f f-total"><span class="lbl">Totaal (km)</span><div class="num total">0</div></div>
+    <div class="f f-amount"><span class="lbl">Bedrag</span><div class="num amount">€ 0,00</div></div>
     <div class="f f-actions actions">
-      <button class="btn btn-retour" type="button" data-action="retour" title="Retourrit toevoegen (adressen omgedraaid)">
+      <button class="btn btn-retour" type="button" data-action="retour" aria-pressed="false" title="Retour-km gelijk maken aan heen-km">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4M3 7h18M7 21l-4-4 4-4M21 17H3"/></svg>
         <span class="txt">Retour</span>
       </button>
@@ -375,17 +358,25 @@
   var STORE_KEY = 'kilometerregistratie.v1';
   var DEFAULT_RATE = 0.23;
   var MONTHS = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+  var MONTHS_SHORT = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
-  // state.months[YYYY-MM] = [{id, date, from, to, client, km}]  (km = ruwe invoer als tekst)
-  // state.meta[YYYY-MM] = {modifiedAt, exportedAt}
-  var state = { rate: DEFAULT_RATE, months: {}, meta: {} };
+  // state.months[YYYY-MM] = [{id, date, place, location, out, back}]  (km als ruwe invoertekst)
+  // state.meta[YYYY-MM]   = {modifiedAt, exportedAt}
+  var state = { rate: DEFAULT_RATE, home: '', months: {}, meta: {} };
   var currentYm = ymOf(todayStr());
 
   var $ = function (id) { return document.getElementById(id); };
   var eur = new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' });
-  var kmFmt = new Intl.NumberFormat('nl-NL', { maximumFractionDigits: 3 });
+  var kmFmt = new Intl.NumberFormat('nl-NL', { maximumFractionDigits: 2 });
 
   /* ---------- Opslag ---------- */
+  function migrateTrip(t) {
+    // Oude opzet (vertrek/bestemming/klant/km) omzetten naar plaats/locatie/heen/retour.
+    if (t && t.out === undefined && t.km !== undefined) {
+      return { id: t.id, date: t.date, place: '', location: t.client || t.to || '', out: t.km || '', back: '' };
+    }
+    return t;
+  }
   function load() {
     try {
       var raw = localStorage.getItem(STORE_KEY);
@@ -393,7 +384,12 @@
       var d = JSON.parse(raw);
       if (d && typeof d === 'object') {
         if (typeof d.rate === 'number' && isFinite(d.rate) && d.rate >= 0) state.rate = d.rate;
-        if (d.months && typeof d.months === 'object') state.months = d.months;
+        if (typeof d.home === 'string') state.home = d.home;
+        if (d.months && typeof d.months === 'object') {
+          Object.keys(d.months).forEach(function (k) {
+            if (Array.isArray(d.months[k])) state.months[k] = d.months[k].filter(Boolean).map(migrateTrip);
+          });
+        }
         if (d.meta && typeof d.meta === 'object') state.meta = d.meta;
       }
     } catch (e) {
@@ -429,48 +425,51 @@
     return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1);
   }
   function monthLabel(ym) { return MONTHS[+ym.slice(5, 7) - 1] + ' ' + ym.slice(0, 4); }
-  function isValidDate(s) { return /^\d{4}-\d{2}-\d{2}$/.test(s) && addDays(s, 0) === s; }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function isValidDate(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && addDays(s, 0) === s; }
   function dateInMonth(s, ym) { return isValidDate(s) && ymOf(s) === ym; }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function round2(x) { return Math.round((x + Number.EPSILON) * 100) / 100; }
 
   // Accepteert "12,5", "12.5", "1.234,5", "1,234.5"
   function parseNum(str) {
-    if (typeof str === 'number') return str;
-    var s = String(str || '').replace(/\s/g, '');
+    var s = String(str == null ? '' : str).replace(/\s/g, '');
     if (!s) return NaN;
     var lc = s.lastIndexOf(','), ld = s.lastIndexOf('.');
     if (lc > -1 && ld > -1) {
       var dec = lc > ld ? ',' : '.';
-      var grp = dec === ',' ? '.' : ',';
-      s = s.split(grp).join('').replace(dec, '.');
+      s = s.split(dec === ',' ? '.' : ',').join('').replace(dec, '.');
     } else {
       s = s.replace(',', '.');
     }
     if (!/^(\d+\.?\d*|\.\d+)$/.test(s)) return NaN;
     return parseFloat(s);
   }
-  function kmValue(trip) { var v = parseNum(trip.km); return isFinite(v) && v > 0 ? v : NaN; }
-  function tripAmount(trip) { var v = kmValue(trip); return isFinite(v) ? round2(v * state.rate) : 0; }
+  function isBlank(v) { return String(v == null ? '' : v).trim() === ''; }
+  function kmOut(t) { var v = parseNum(t.out); return isFinite(v) && v > 0 ? v : NaN; }
+  function kmBack(t) { var v = parseNum(t.back); return isFinite(v) && v >= 0 ? v : NaN; }
+  function backValid(t) { return isBlank(t.back) || isFinite(kmBack(t)); }
+  function tripKm(t) { var o = kmOut(t), b = kmBack(t); return (isFinite(o) ? o : 0) + (isFinite(b) ? b : 0); }
+  function tripAmount(t) { return round2(tripKm(t) * state.rate); }
   function fmtRate(r) { return r.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 4 }); }
 
   function trips() { return state.months[currentYm] || (state.months[currentYm] = []); }
-  function touch(ym) {
-    var m = state.meta[ym] || (state.meta[ym] = {});
-    m.modifiedAt = Date.now();
-  }
+  function touch(ym) { (state.meta[ym] || (state.meta[ym] = {})).modifiedAt = Date.now(); }
   function sortTrips(list) {
-    // Stabiele sortering op datum; ongeldige datums achteraan.
     list.sort(function (a, b) {
       var da = isValidDate(a.date) ? a.date : '9999', db = isValidDate(b.date) ? b.date : '9999';
       return da < db ? -1 : da > db ? 1 : 0;
     });
   }
   function needsExport(ym) {
-    var list = state.months[ym] || [];
-    if (!list.length) return false;
+    if (!(state.months[ym] || []).length) return false;
     var m = state.meta[ym] || {};
     return !m.exportedAt || (m.modifiedAt || 0) > m.exportedAt;
+  }
+  function allTrips() {
+    var out = [];
+    Object.keys(state.months).forEach(function (k) { out = out.concat(state.months[k] || []); });
+    return out;
   }
 
   /* ---------- Maandkeuze ---------- */
@@ -481,95 +480,128 @@
     for (var y = nowYear - 3; y <= nowYear + 1; y++) years[y] = true;
     years[curYear] = true;
     Object.keys(state.months).forEach(function (k) { if ((state.months[k] || []).length) years[+k.slice(0, 4)] = true; });
-    var yl = Object.keys(years).map(Number).sort(function (a, b) { return a - b; });
     ys.innerHTML = '';
-    yl.forEach(function (y) { var o = document.createElement('option'); o.value = y; o.textContent = y; ys.appendChild(o); });
+    Object.keys(years).map(Number).sort(function (a, b) { return a - b; }).forEach(function (y) {
+      var o = document.createElement('option'); o.value = y; o.textContent = y; ys.appendChild(o);
+    });
     ys.value = String(curYear);
     ms.innerHTML = '';
     MONTHS.forEach(function (name, i) {
-      var key = curYear + '-' + pad(i + 1);
-      var n = (state.months[key] || []).length;
+      var n = (state.months[curYear + '-' + pad(i + 1)] || []).length;
       var o = document.createElement('option');
       o.value = pad(i + 1);
-      o.textContent = name.charAt(0).toUpperCase() + name.slice(1) + (n ? ' •' : '');
+      o.textContent = cap(name) + (n ? ' •' : '');
       ms.appendChild(o);
     });
     ms.value = currentYm.slice(5, 7);
   }
-  function setMonth(ym) {
-    currentYm = ym;
-    render();
-  }
+  function setMonth(ym) { currentYm = ym; render(); }
 
   /* ---------- Render ---------- */
   function render() {
     buildMonthSelectors();
-    var list = trips();
-    var container = $('tripList');
-    var tpl = $('tripTpl');
-    var b = monthBounds(currentYm);
+    buildDatalists();
+    var list = trips(), container = $('tripList'), tpl = $('tripTpl'), b = monthBounds(currentYm);
     container.innerHTML = '';
     list.forEach(function (t) {
       var node = tpl.content.firstElementChild.cloneNode(true);
       node.dataset.id = t.id;
       var di = node.querySelector('[data-field="date"]');
       di.min = b[0]; di.max = b[1]; di.value = t.date || '';
-      node.querySelector('[data-field="from"]').value = t.from || '';
-      node.querySelector('[data-field="to"]').value = t.to || '';
-      node.querySelector('[data-field="client"]').value = t.client || '';
-      node.querySelector('[data-field="km"]').value = t.km || '';
-      updateRowValidity(node, t);
-      node.querySelector('.amount').textContent = eur.format(tripAmount(t));
+      ['place', 'location', 'out', 'back'].forEach(function (f) { node.querySelector('[data-field="' + f + '"]').value = t[f] || ''; });
+      updateRow(node, t);
       container.appendChild(node);
     });
     $('emptyState').hidden = list.length > 0;
     $('emptyMonth').textContent = monthLabel(currentYm);
-    $('dangerMonth').textContent = monthLabel(currentYm);
-    $('clearMonth').disabled = list.length === 0;
-    renderRate();
+    renderSettings();
     renderTotals();
     renderExportStatus();
   }
-  function updateRowValidity(node, t) {
+  function updateRow(node, t) {
     node.querySelector('[data-field="date"]').classList.toggle('invalid', !dateInMonth(t.date, currentYm));
-    // Lege km-invoer pas als fout tonen zodra er iets ingevuld is of bij export
-    var kmEl = node.querySelector('[data-field="km"]');
-    kmEl.classList.toggle('invalid', String(t.km || '').trim() !== '' && !isFinite(kmValue(t)));
+    node.querySelector('[data-field="out"]').classList.toggle('invalid', !isBlank(t.out) && !isFinite(kmOut(t)));
+    node.querySelector('[data-field="back"]').classList.toggle('invalid', !backValid(t));
+    node.querySelector('.total').textContent = kmFmt.format(tripKm(t));
+    node.querySelector('.amount').textContent = eur.format(tripAmount(t));
+    var hasBack = isFinite(kmBack(t)) && kmBack(t) > 0;
+    node.querySelector('[data-action="retour"]').setAttribute('aria-pressed', hasBack ? 'true' : 'false');
+  }
+  function monthTotals(list) {
+    var r = { out: 0, back: 0, km: 0, amount: 0, nOut: 0, nBack: 0 };
+    list.forEach(function (t) {
+      var o = kmOut(t), b = kmBack(t);
+      if (isFinite(o)) { r.out += o; r.nOut++; }
+      if (isFinite(b) && b > 0) { r.back += b; r.nBack++; }
+      r.amount += tripAmount(t);
+    });
+    r.out = round2(r.out); r.back = round2(r.back); r.km = round2(r.out + r.back); r.amount = round2(r.amount);
+    return r;
   }
   function renderTotals() {
-    var list = trips(), km = 0, amt = 0;
-    list.forEach(function (t) { var v = kmValue(t); if (isFinite(v)) { km += v; amt += tripAmount(t); } });
-    km = Math.round(km * 1000) / 1000;
-    $('totalKm').textContent = kmFmt.format(km) + ' km';
-    $('totalAmount').textContent = eur.format(round2(amt));
-    $('totalSub').textContent = 'Totaal bedrag (à ' + '€ ' + fmtRate(state.rate) + '/km)';
-    $('tripCount').textContent = list.length + (list.length === 1 ? ' rit' : ' ritten');
-    return { km: km, amount: round2(amt) };
+    var list = trips(), r = monthTotals(list);
+    $('totalOut').textContent = kmFmt.format(r.out);
+    $('totalBack').textContent = kmFmt.format(r.back);
+    $('totalKm').textContent = kmFmt.format(r.km) + ' km';
+    $('totalAmount').textContent = eur.format(r.amount);
+    $('totalSub').textContent = 'Bedrag (à € ' + fmtRate(state.rate) + '/km)';
+    $('tripCount').textContent = r.nOut + r.nBack === 0 ? '' : (r.nOut + r.nBack) + ' enkele ritten';
   }
-  function renderAmounts() {
+  function renderAllRows() {
     Array.prototype.forEach.call($('tripList').children, function (node) {
       var t = find(node.dataset.id);
-      if (t) node.querySelector('.amount').textContent = eur.format(tripAmount(t));
+      if (t) updateRow(node, t);
     });
     renderTotals();
   }
-  function renderRate() {
-    var ri = $('rateInput');
+  function renderSettings() {
+    var ri = $('rateInput'), hi = $('homeInput');
     if (document.activeElement !== ri) { ri.value = fmtRate(state.rate); ri.classList.remove('invalid'); }
-    $('rateBadge').textContent = '· ' + '€ ' + fmtRate(state.rate) + ' per km';
+    if (document.activeElement !== hi) hi.value = state.home;
+    $('settingsBadge').textContent = '· € ' + fmtRate(state.rate) + '/km' + (state.home ? ' · ' + state.home : '');
   }
   function renderExportStatus() {
     var el = $('exportStatus'), m = state.meta[currentYm] || {}, n = trips().length;
     el.className = 'status small';
-    if (!n) { el.textContent = 'Nog niets te exporteren voor ' + monthLabel(currentYm) + '.'; el.classList.add('muted'); return; }
-    if (!m.exportedAt) { el.textContent = 'Deze maand is nog niet geëxporteerd.'; el.classList.add('warn'); return; }
+    if (!n) { el.textContent = ''; return; }
+    if (!m.exportedAt) { el.textContent = cap(monthLabel(currentYm)) + ' is nog niet geëxporteerd.'; el.classList.add('warn'); return; }
     var when = new Date(m.exportedAt).toLocaleString('nl-NL', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
     if (needsExport(currentYm)) { el.textContent = 'Gewijzigd sinds laatste export (' + when + ').'; el.classList.add('warn'); }
     else { el.textContent = '✓ Geëxporteerd op ' + when + '.'; el.classList.add('ok'); }
   }
+  // Suggesties uit eerder ingevulde plaatsen en theaters
+  function buildDatalists() {
+    var places = {}, locs = {};
+    allTrips().forEach(function (t) {
+      if (!isBlank(t.place)) places[t.place.trim()] = true;
+      if (!isBlank(t.location)) locs[t.location.trim()] = true;
+    });
+    fillList($('placeList'), Object.keys(places));
+    fillList($('locList'), Object.keys(locs));
+  }
+  function fillList(dl, values) {
+    dl.innerHTML = '';
+    values.sort(function (a, b) { return a.localeCompare(b, 'nl'); }).forEach(function (v) {
+      var o = document.createElement('option'); o.value = v; dl.appendChild(o);
+    });
+  }
+  // Bekende locatie gekozen: vul plaats en heen-km aan van de laatste keer
+  function autofillFromHistory(t) {
+    if (isBlank(t.location)) return false;
+    var key = t.location.trim().toLowerCase(), prev = null;
+    allTrips().forEach(function (o) {
+      if (o !== t && !isBlank(o.location) && o.location.trim().toLowerCase() === key && (!prev || (o.date || '') >= (prev.date || ''))) prev = o;
+    });
+    if (!prev) return false;
+    var changed = false;
+    if (isBlank(t.place) && !isBlank(prev.place)) { t.place = prev.place; changed = true; }
+    if (isBlank(t.out) && !isBlank(prev.out)) { t.out = prev.out; changed = true; }
+    return changed;
+  }
   function find(id) { var l = trips(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+  function rowNode(id) { return $('tripList').querySelector('[data-id="' + id + '"]'); }
   function flashRow(id, focusField) {
-    var node = $('tripList').querySelector('[data-id="' + id + '"]');
+    var node = rowNode(id);
     if (!node) return;
     node.classList.add('flash');
     setTimeout(function () { node.classList.remove('flash'); }, 900);
@@ -592,23 +624,25 @@
     return dateInMonth(t, currentYm) ? t : b[0];
   }
   function addTrip() {
-    var t = { id: uid(), date: nextDate(), from: '', to: '', client: '', km: '' };
+    var t = { id: uid(), date: nextDate(), place: '', location: '', out: '', back: '' };
     var list = trips();
     list.push(t);
     sortTrips(list);
     touch(currentYm); save(); render();
-    flashRow(t.id, 'from');
+    flashRow(t.id, 'place');
   }
-  function addReturn(id) {
-    var list = trips(), i = list.indexOf(find(id));
-    if (i < 0) return;
-    var o = list[i];
-    var r = { id: uid(), date: o.date, from: o.to || '', to: o.from || '', client: o.client || '', km: o.km || '' };
-    list.splice(i + 1, 0, r);
-    sortTrips(list);
-    touch(currentYm); save(); render();
-    flashRow(r.id);
-    toast('Retourrit toegevoegd');
+  function toggleReturn(id) {
+    var t = find(id), node = rowNode(id);
+    if (!t || !node) return;
+    if (isFinite(kmBack(t)) && kmBack(t) > 0) {
+      t.back = '';
+    } else {
+      if (!isFinite(kmOut(t))) { toast('Vul eerst de heen-km in'); node.querySelector('[data-field="out"]').focus(); return; }
+      t.back = t.out;
+    }
+    node.querySelector('[data-field="back"]').value = t.back;
+    touch(currentYm); save();
+    updateRow(node, t); renderTotals(); renderExportStatus();
   }
   var lastDeleted = null;
   function deleteTrip(id) {
@@ -628,7 +662,38 @@
     });
   }
 
-  /* ---------- CSV ---------- */
+  /* ---------- Export: gedeeld ---------- */
+  function checkExportable() {
+    var list = trips();
+    if (!list.length) { toast('Er zijn nog geen ritten in ' + monthLabel(currentYm)); return false; }
+    var bad = list.filter(function (t) { return !dateInMonth(t.date, currentYm) || !isFinite(kmOut(t)) || !backValid(t); });
+    if (!bad.length) return true;
+    Array.prototype.forEach.call($('tripList').children, function (node) {
+      var t = find(node.dataset.id); if (!t) return;
+      updateRow(node, t);
+      node.querySelector('[data-field="out"]').classList.toggle('invalid', !isFinite(kmOut(t)));
+    });
+    var f = bad[0];
+    flashRow(f.id, !dateInMonth(f.date, currentYm) ? 'date' : !isFinite(kmOut(f)) ? 'out' : 'back');
+    toast(bad.length === 1 ? '1 rit mist een geldige datum of kilometers' : bad.length + ' ritten missen een geldige datum of kilometers');
+    return false;
+  }
+  function download(blob, name) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+  function markExported() {
+    var m = state.meta[currentYm] || (state.meta[currentYm] = {});
+    m.exportedAt = Date.now();
+    if ((m.modifiedAt || 0) > m.exportedAt) m.modifiedAt = m.exportedAt;
+    save(); renderExportStatus();
+  }
+  function title(ym) { return 'Kilometerregistratie — ' + cap(monthLabel(ym)); }
+
+  /* ---------- Export: CSV ---------- */
   function csvField(v) {
     var s = String(v == null ? '' : v);
     return /[;"\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -638,77 +703,227 @@
   }
   function nlDate(s) { return s.slice(8, 10) + '-' + s.slice(5, 7) + '-' + s.slice(0, 4); }
   function buildCsv(ym) {
-    var list = state.months[ym] || [];
-    var rows = [['Datum', 'Vertrekadres', 'Bestemmingsadres', 'Klant', 'Kilometers', 'Tarief per km', 'Bedrag']];
-    var km = 0, amt = 0;
+    var list = state.months[ym] || [], r = monthTotals(list);
+    var rows = [
+      [title(ym)],
+      ['Vertrekadres', state.home],
+      ['Tarief per km', csvNum(state.rate, 2, 4)],
+      [],
+      ['Datum', 'Plaats', 'Theater / locatie', 'Vertrekadres', 'Heen (km)', 'Retour (km)', 'Totaal (km)', 'Bedrag']
+    ];
     list.forEach(function (t) {
-      var v = kmValue(t), a = round2(v * state.rate);
-      km += v; amt += a;
-      rows.push([nlDate(t.date), t.from || '', t.to || '', t.client || '', csvNum(v, 0, 3), csvNum(state.rate, 2, 4), csvNum(a, 2, 2)]);
+      var b = kmBack(t);
+      rows.push([nlDate(t.date), t.place || '', t.location || '', state.home, csvNum(kmOut(t), 0, 2),
+        isFinite(b) && b > 0 ? csvNum(b, 0, 2) : '', csvNum(tripKm(t), 2, 2), csvNum(tripAmount(t), 2, 2)]);
     });
-    rows.push(['Totaal', '', '', '', csvNum(Math.round(km * 1000) / 1000, 0, 3), '', csvNum(round2(amt), 2, 2)]);
-    return '﻿' + rows.map(function (r) { return r.map(csvField).join(';'); }).join('\r\n') + '\r\n';
+    rows.push([]);
+    rows.push(['', '', '', 'MAANDTOTAAL', csvNum(r.out, 0, 2), csvNum(r.back, 0, 2), csvNum(r.km, 2, 2), csvNum(r.amount, 2, 2)]);
+    rows.push(['', '', '', 'Ingevulde enkele ritten', r.nOut, r.nBack]);
+    return '﻿' + rows.map(function (row) { return row.map(csvField).join(';'); }).join('\r\n') + '\r\n';
   }
   function exportCsv() {
-    var list = trips();
-    if (!list.length) { toast('Er zijn nog geen ritten in ' + monthLabel(currentYm)); return false; }
-    var bad = list.filter(function (t) { return !dateInMonth(t.date, currentYm) || !isFinite(kmValue(t)); });
-    if (bad.length) {
-      Array.prototype.forEach.call($('tripList').children, function (node) {
-        var t = find(node.dataset.id); if (!t) return;
-        node.querySelector('[data-field="date"]').classList.toggle('invalid', !dateInMonth(t.date, currentYm));
-        node.querySelector('[data-field="km"]').classList.toggle('invalid', !isFinite(kmValue(t)));
-      });
-      flashRow(bad[0].id, isFinite(kmValue(bad[0])) ? 'date' : 'km');
-      toast(bad.length === 1 ? '1 rit mist een geldige datum of kilometers' : bad.length + ' ritten missen een geldige datum of kilometers');
-      return false;
-    }
-    var blob = new Blob([buildCsv(currentYm)], { type: 'text/csv;charset=utf-8' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url; a.download = 'kilometerregistratie-' + currentYm + '.csv';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-    var m = state.meta[currentYm] || (state.meta[currentYm] = {});
-    m.exportedAt = Date.now();
-    if ((m.modifiedAt || 0) > m.exportedAt) m.modifiedAt = m.exportedAt;
-    save(); renderExportStatus();
+    if (!checkExportable()) return;
+    download(new Blob([buildCsv(currentYm)], { type: 'text/csv;charset=utf-8' }), 'kilometerregistratie-' + currentYm + '.csv');
+    markExported();
     toast('CSV gedownload');
-    return true;
   }
 
-  /* ---------- Maand legen ---------- */
-  function clearMonth() {
-    var ym = currentYm, list = trips();
-    if (!list.length) return;
-    var label = monthLabel(ym);
-    var msg = 'Weet je zeker dat je alle ritten van ' + label + ' wilt verwijderen? Exporteer eerst als je dat nog niet gedaan hebt.';
-    var warn = '';
-    if (needsExport(ym)) {
-      warn = (state.meta[ym] || {}).exportedAt
-        ? '⚠ Let op: er zijn wijzigingen sinds je laatste export van ' + label + '. Die ben je kwijt als je nu leegmaakt.'
-        : '⚠ Let op: je hebt ' + label + ' nog niet geëxporteerd. De ' + list.length + (list.length === 1 ? ' rit is' : ' ritten zijn') + ' na het legen definitief weg.';
+  /* ---------- Export: Excel (.xlsx, zonder externe library) ---------- */
+  function xmlEsc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; })
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+  }
+  function excelSerial(dateStr) {
+    var p = dateStr.split('-');
+    return (Date.UTC(+p[0], +p[1] - 1, +p[2]) - Date.UTC(1899, 11, 30)) / 86400000;
+  }
+  // Stijlindexen (cellXfs) in styles.xml hieronder
+  var S = { title: 1, label: 2, head: 3, date: 4, text: 5, kmIn: 6, kmBack: 7, total: 8, money: 9, footLabel: 10, footKm: 11, footTotal: 12, footMoney: 13, rate: 14, count: 15, headR: 16, sub: 17 };
+  var STYLES_XML =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<numFmts count="4">' +
+      '<numFmt numFmtId="164" formatCode="d mmm yyyy"/>' +
+      '<numFmt numFmtId="165" formatCode="#,##0.00"/>' +
+      '<numFmt numFmtId="166" formatCode="&quot;€&quot; #,##0.00"/>' +
+      '<numFmt numFmtId="167" formatCode="&quot;€&quot; 0.00##"/>' +
+    '</numFmts>' +
+    '<fonts count="5">' +
+      '<font><sz val="11"/><name val="Calibri"/></font>' +
+      '<font><b/><sz val="15"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>' +
+      '<font><b/><sz val="11"/><name val="Calibri"/></font>' +
+      '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>' +
+      '<font><sz val="10"/><color rgb="FF595959"/><name val="Calibri"/></font>' +
+    '</fonts>' +
+    '<fills count="5">' +
+      '<fill><patternFill patternType="none"/></fill>' +
+      '<fill><patternFill patternType="gray125"/></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FF1F3864"/><bgColor indexed="64"/></patternFill></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill>' +
+    '</fills>' +
+    '<borders count="2">' +
+      '<border><left/><right/><top/><bottom/><diagonal/></border>' +
+      '<border><left/><right/><top/><bottom style="thin"><color rgb="FFD9D9D9"/></bottom><diagonal/></border>' +
+    '</borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="18">' +
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +                                                                   // 0 standaard
+      '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment vertical="center"/></xf>' +       // 1 titel
+      '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +                                                      // 2 label
+      '<xf numFmtId="0" fontId="3" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment vertical="center"/></xf>' +       // 3 kop
+      '<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"><alignment horizontal="right"/></xf>' + // 4 datum
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>' +                                                    // 5 tekst
+      '<xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>' +                                      // 6 heen-km (geel)
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>' +                                                    // 7 retour-km
+      '<xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>' +                            // 8 totaal km
+      '<xf numFmtId="166" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1"/>' +                            // 9 bedrag
+      '<xf numFmtId="0" fontId="3" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +                                        // 10 MAANDTOTAAL
+      '<xf numFmtId="0" fontId="2" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +                                        // 11 totaal heen/retour
+      '<xf numFmtId="165" fontId="3" fillId="2" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>' +                // 12 totaal km
+      '<xf numFmtId="166" fontId="3" fillId="2" borderId="0" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1"/>' +                // 13 totaal bedrag
+      '<xf numFmtId="167" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"><alignment horizontal="left"/></xf>' +          // 14 tarief
+      '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +                                                                    // 15 aantal
+      '<xf numFmtId="0" fontId="3" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment horizontal="right" vertical="center"/></xf>' + // 16 kop rechts
+      '<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +                                                      // 17 subtekst
+    '</cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+    '</styleSheet>';
+
+  function buildSheetXml(ym) {
+    var list = state.months[ym] || [], r = monthTotals(list);
+    var cols = 'ABCDEFGH';
+    var rowsXml = [];
+    function cell(ref, s, v) {
+      if (v === null || v === undefined || v === '') return '<c r="' + ref + '" s="' + s + '"/>';
+      if (typeof v === 'number') return '<c r="' + ref + '" s="' + s + '"><v>' + v + '</v></c>';
+      if (typeof v === 'object' && v.f) return '<c r="' + ref + '" s="' + s + '"><f>' + xmlEsc(v.f) + '</f><v>' + v.v + '</v></c>';
+      return '<c r="' + ref + '" s="' + s + '" t="inlineStr"><is><t xml:space="preserve">' + xmlEsc(v) + '</t></is></c>';
     }
-    var doClear = function () {
-      state.months[ym] = [];
-      touch(ym); save(); render();
-      toast('Ritten van ' + label + ' verwijderd');
-    };
-    var dlg = $('clearDialog');
-    if (dlg && typeof dlg.showModal === 'function') {
-      $('clearMsg').textContent = msg;
-      $('clearWarn').textContent = warn;
-      $('clearWarn').hidden = !warn;
-      $('clearExport').hidden = !warn;
-      dlg.returnValue = '';
-      dlg.onclose = function () {
-        if (dlg.returnValue === 'confirm') doClear();
-        else if (dlg.returnValue === 'export') exportCsv();
-      };
-      dlg.showModal();
-    } else if (window.confirm((warn ? warn + '\n\n' : '') + msg)) {
-      doClear();
+    function row(n, cells, ht) {
+      var x = '<row r="' + n + '"' + (ht ? ' ht="' + ht + '" customHeight="1"' : '') + '>';
+      cells.forEach(function (c, i) { if (c) x += cell(cols[i] + n, c[0], c[1]); });
+      rowsXml.push(x + '</row>');
     }
+    var navy = [S.title, ''];
+    row(1, [[S.title, title(ym)], navy, navy, navy, navy, navy, navy, navy], 28);
+    row(2, [[S.label, 'Vertrekadres'], [0, state.home], null, null, null, [S.label, 'Tarief per km'], [S.rate, state.rate]]);
+    row(3, []);
+    var head = ['Datum', 'Plaats', 'Theater / locatie', 'Vertrekadres', 'Heen (km)', 'Retour (km)', 'Totaal (km)', 'Bedrag'];
+    row(4, head.map(function (h, i) { return [i >= 4 ? S.headR : S.head, h]; }), 22);
+    var first = 5, n = first;
+    list.forEach(function (t) {
+      var o = kmOut(t), b = kmBack(t), hasB = isFinite(b) && b > 0;
+      row(n, [
+        [S.date, excelSerial(t.date)],
+        [S.text, t.place || ''],
+        [S.text, t.location || ''],
+        [S.text, state.home],
+        [S.kmIn, o],
+        [S.kmBack, hasB ? b : ''],
+        [S.total, { f: 'E' + n + '+F' + n, v: round2(o + (hasB ? b : 0)) }],
+        [S.money, { f: 'ROUND(G' + n + '*$G$2,2)', v: tripAmount(t) }]
+      ]);
+      n++;
+    });
+    var last = n - 1;
+    var rng = function (c) { return c + first + ':' + c + last; };
+    n++;
+    row(n, [null, null, null, [S.footLabel, 'MAANDTOTAAL'],
+      [S.footKm, { f: 'SUM(' + rng('E') + ')', v: r.out }],
+      [S.footKm, { f: 'SUM(' + rng('F') + ')', v: r.back }],
+      [S.footTotal, { f: 'SUM(' + rng('G') + ')', v: r.km }],
+      [S.footMoney, { f: 'SUM(' + rng('H') + ')', v: r.amount }]], 20);
+    n++;
+    row(n, [null, null, null, [S.label, 'Ingevulde enkele ritten'],
+      [S.count, { f: 'COUNT(' + rng('E') + ')', v: r.nOut }],
+      [S.count, { f: 'COUNT(' + rng('F') + ')', v: r.nBack }]]);
+
+    var widths = [14, 18, 32, 28, 11, 12, 12, 13];
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+      '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>' +
+      '<sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews>' +
+      '<sheetFormatPr defaultRowHeight="16"/>' +
+      '<cols>' + widths.map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('') + '</cols>' +
+      '<sheetData>' + rowsXml.join('') + '</sheetData>' +
+      '<mergeCells count="2"><mergeCell ref="A1:H1"/><mergeCell ref="B2:D2"/></mergeCells>' +
+      '<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>' +
+      '<pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/>' +
+      '</worksheet>';
+  }
+  function buildXlsx(ym) {
+    var files = [
+      ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+        '</Types>'],
+      ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>'],
+      ['xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<sheets><sheet name="' + ym + '" sheetId="1" r:id="rId1"/></sheets>' +
+        '<calcPr calcId="191029" fullCalcOnLoad="1"/>' +
+        '</workbook>'],
+      ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+        '</Relationships>'],
+      ['xl/styles.xml', STYLES_XML],
+      ['xl/worksheets/sheet1.xml', buildSheetXml(ym)]
+    ];
+    return zipStore(files);
+  }
+
+  // Minimale ZIP-schrijver (zonder compressie) voor het .xlsx-bestand
+  var CRC_TABLE = (function () {
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+    return t;
+  })();
+  function crc32(bytes) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function zipStore(files) {
+    var enc = new TextEncoder(), parts = [], central = [], offset = 0;
+    var now = new Date();
+    var dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+    var dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+    files.forEach(function (f) {
+      var name = enc.encode(f[0]), data = enc.encode(f[1]), crc = crc32(data);
+      var lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+      lh.setUint16(10, dosTime, true); lh.setUint16(12, dosDate, true); lh.setUint32(14, crc, true);
+      lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+      parts.push(new Uint8Array(lh.buffer), name, data);
+      var ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+      ch.setUint16(12, dosTime, true); ch.setUint16(14, dosDate, true); ch.setUint32(16, crc, true);
+      ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true);
+      ch.setUint32(42, offset, true);
+      central.push(new Uint8Array(ch.buffer), name);
+      offset += 30 + name.length + data.length;
+    });
+    var cdSize = central.reduce(function (s, p) { return s + p.length; }, 0);
+    var end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+    end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [new Uint8Array(end.buffer)]), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+  function exportXlsx() {
+    if (!checkExportable()) return;
+    download(buildXlsx(currentYm), 'kilometerregistratie-' + currentYm + '.xlsx');
+    markExported();
+    toast('Excel-bestand gedownload');
   }
 
   /* ---------- Toast ---------- */
@@ -725,20 +940,30 @@
   }
 
   /* ---------- Events ---------- */
-  var list = $('tripList');
-  list.addEventListener('input', function (e) {
+  var listEl = $('tripList');
+  listEl.addEventListener('input', function (e) {
     var f = e.target.dataset && e.target.dataset.field;
     if (!f) return;
     var node = e.target.closest('.trip'), t = node && find(node.dataset.id);
     if (!t) return;
     t[f] = e.target.value;
     touch(currentYm); save();
-    if (f === 'km' || f === 'date') updateRowValidity(node, t);
-    if (f === 'km') { node.querySelector('.amount').textContent = eur.format(tripAmount(t)); renderTotals(); }
-    renderExportStatus();
+    updateRow(node, t); renderTotals(); renderExportStatus();
+  });
+  listEl.addEventListener('change', function (e) {
+    var f = e.target.dataset && e.target.dataset.field;
+    if (f !== 'location' && f !== 'place') return;
+    var node = e.target.closest('.trip'), t = node && find(node.dataset.id);
+    if (!t) return;
+    if (f === 'location' && autofillFromHistory(t)) {
+      node.querySelector('[data-field="place"]').value = t.place;
+      node.querySelector('[data-field="out"]').value = t.out;
+      save(); updateRow(node, t); renderTotals();
+    }
+    buildDatalists();
   });
   // Sorteren op datum pas bij verlaten van het datumveld, zodat de focus niet verspringt tijdens typen.
-  list.addEventListener('focusout', function (e) {
+  listEl.addEventListener('focusout', function (e) {
     if (!e.target.dataset || e.target.dataset.field !== 'date') return;
     var l = trips(), before = l.map(function (t) { return t.id; }).join();
     sortTrips(l);
@@ -748,17 +973,17 @@
       setTimeout(function () { render(); flashRow(id); }, 0);
     }
   });
-  list.addEventListener('click', function (e) {
+  listEl.addEventListener('click', function (e) {
     var btn = e.target.closest('[data-action]');
     if (!btn) return;
     var id = btn.closest('.trip').dataset.id;
-    if (btn.dataset.action === 'retour') addReturn(id);
+    if (btn.dataset.action === 'retour') toggleReturn(id);
     else if (btn.dataset.action === 'delete') deleteTrip(id);
   });
 
   $('addTrip').addEventListener('click', addTrip);
+  $('exportXlsx').addEventListener('click', exportXlsx);
   $('exportCsv').addEventListener('click', exportCsv);
-  $('clearMonth').addEventListener('click', clearMonth);
   $('prevMonth').addEventListener('click', function () { setMonth(shiftMonth(currentYm, -1)); });
   $('nextMonth').addEventListener('click', function () { setMonth(shiftMonth(currentYm, 1)); });
   $('thisMonth').addEventListener('click', function () { setMonth(ymOf(todayStr())); });
@@ -772,17 +997,19 @@
     if (!ok) return;
     state.rate = v;
     if (trips().length) touch(currentYm);
-    save();
-    renderAmounts();
-    $('rateBadge').textContent = '· ' + '€ ' + fmtRate(state.rate) + ' per km';
-    renderExportStatus();
+    save(); renderAllRows(); renderSettings(); renderExportStatus();
   });
-  $('rateInput').addEventListener('blur', renderRate);
+  $('rateInput').addEventListener('blur', renderSettings);
+  $('homeInput').addEventListener('input', function () {
+    state.home = this.value;
+    if (trips().length) touch(currentYm);
+    save(); renderSettings(); renderExportStatus();
+  });
 
   // Synchroniseer als de app in een ander tabblad wordt gewijzigd.
   window.addEventListener('storage', function (e) {
     if (e.key !== STORE_KEY) return;
-    state = { rate: DEFAULT_RATE, months: {}, meta: {} };
+    state = { rate: DEFAULT_RATE, home: '', months: {}, meta: {} };
     load(); render();
   });
 
