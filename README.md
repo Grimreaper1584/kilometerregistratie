@@ -1,6 +1,6 @@
 # Kilometerregistratie
 
-Een eenvoudige webapp om zakelijke kilometers per maand bij te houden en als CSV te exporteren (bijvoorbeeld voor je boekhouding of belastingaangifte als ZZP'er).
+Een eenvoudige webapp om zakelijke kilometers per maand bij te houden en te exporteren naar Excel/Numbers (bijvoorbeeld voor je boekhouding of belastingaangifte als ZZP'er).
 
 **Live:** https://grimreaper1584.github.io/kilometerregistratie/
 
@@ -21,7 +21,7 @@ Een eenvoudige webapp om zakelijke kilometers per maand bij te houden en als CSV
 Er is geen server of account. Alles wordt opgeslagen in de browser (localStorage) op het apparaat dat je gebruikt:
 
 - Data blijft bewaard als je de pagina sluit, maar is **niet** gedeeld tussen telefoon en laptop.
-- Browsergeschiedenis/sitegegevens wissen of privémodus = data weg. **Exporteer daarom elke maand naar CSV** als back-up.
+- Browsergeschiedenis/sitegegevens wissen of privémodus = data weg. **Exporteer daarom elke maand** als back-up.
 - Het tarief is één instelling voor alle maanden; bij een wijziging worden ook oude maanden met het nieuwe tarief berekend. Exporteer een maand dus vóór je het tarief aanpast.
 
 ## Techniek
