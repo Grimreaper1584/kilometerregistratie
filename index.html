@@ -165,8 +165,29 @@
   .empty { text-align: center; padding: 28px 14px; color: var(--muted); }
   .empty strong { display: block; color: var(--text); margin-bottom: 4px; }
 
-  .add-row { margin: 12px 0 14px; }
-  .add-row .btn { width: 100%; }
+  .add-row { margin: 12px 0 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .add-row #addTrip { flex: 1 1 240px; }
+  .add-row #importBtn { flex: 0 1 auto; }
+
+  /* Import-dialoog */
+  dialog {
+    overflow: auto;
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;
+    background: var(--surface); color: var(--text); width: min(640px, calc(100% - 32px)); max-height: calc(100% - 32px);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  dialog h2 { margin: 0 0 4px; font-size: 1.15rem; }
+  .map-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+  .map-grid label { display: grid; gap: 4px; font-size: .85rem; font-weight: 600; }
+  .imp-summary { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .imp-summary ul { margin: 6px 0 0; padding-left: 18px; }
+  .imp-preview { max-height: 220px; overflow: auto; margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; }
+  .imp-preview table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .imp-preview th, .imp-preview td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .imp-preview th { position: sticky; top: 0; background: var(--surface-2); }
+  .imp-preview tr.dup td { color: var(--muted); text-decoration: line-through; }
+  .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 16px; }
+  @media (max-width: 560px) { .map-grid { grid-template-columns: 1fr; } }
 
   /* Totals */
   .totals {
@@ -307,6 +328,11 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Rit toevoegen
     </button>
+    <button class="btn" id="importBtn" type="button" title="Speellijst (.xlsx of .csv) inlezen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>
+      Speellijst importeren
+    </button>
+    <input type="file" id="importFile" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden>
   </div>
 
   <section class="card totals" aria-label="Maandtotaal">
@@ -328,6 +354,24 @@
   </section>
 </div>
 
+<dialog id="importDialog" aria-labelledby="impTitle">
+  <form method="dialog">
+    <h2 id="impTitle">Speellijst importeren</h2>
+    <div class="small muted" id="impFile"></div>
+    <div class="map-grid">
+      <label>Datum<select id="mapDate"></select></label>
+      <label>Plaats<select id="mapPlace"></select></label>
+      <label>Theater / locatie<select id="mapLoc"></select></label>
+    </div>
+    <div class="imp-summary small" id="impSummary"></div>
+    <div class="imp-preview" id="impPreview"></div>
+    <div class="dlg-actions">
+      <button class="btn" value="cancel" type="submit">Annuleren</button>
+      <button class="btn btn-primary" value="import" type="submit" id="impConfirm">Importeren</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="toast" id="toast" role="status"><span id="toastMsg"></span><button type="button" id="toastAction" hidden></button></div>
 
 <template id="tripTpl">
@@ -335,7 +379,7 @@
     <label class="f f-date"><span class="lbl">Datum <span class="req">*</span></span><input type="date" data-field="date" required></label>
     <label class="f f-place"><span class="lbl">Plaats</span><input type="text" data-field="place" list="placeList" autocomplete="off" placeholder="Plaats"></label>
     <label class="f f-loc"><span class="lbl">Theater / locatie</span><input type="text" data-field="location" list="locList" autocomplete="off" placeholder="Theater / locatie"></label>
-    <label class="f f-out"><span class="lbl">Heen (km) <span class="req">*</span></span><input type="text" data-field="out" inputmode="decimal" autocomplete="off" placeholder="0" required></label>
+    <label class="f f-out"><span class="lbl">Heen (km) <span class="req">*</span></span><input type="text" data-field="out" inputmode="decimal" autocomplete="off" placeholder="km" required></label>
     <label class="f f-back"><span class="lbl">Retour (km)</span><input type="text" data-field="back" inputmode="decimal" autocomplete="off" placeholder="–"></label>
     <div class="f f-total"><span class="lbl">Totaal (km)</span><div class="num total">0</div></div>
     <div class="f f-amount"><span class="lbl">Bedrag</span><div class="num amount">€ 0,00</div></div>
@@ -589,8 +633,11 @@
   function autofillFromHistory(t) {
     if (isBlank(t.location)) return false;
     var key = t.location.trim().toLowerCase(), prev = null;
+    // Laatste eerdere rit naar deze locatie, bij voorkeur een met ingevulde km
     allTrips().forEach(function (o) {
-      if (o !== t && !isBlank(o.location) && o.location.trim().toLowerCase() === key && (!prev || (o.date || '') >= (prev.date || ''))) prev = o;
+      if (o === t || isBlank(o.location) || o.location.trim().toLowerCase() !== key) return;
+      var better = !prev || (!isBlank(o.out) && isBlank(prev.out)) || (isBlank(o.out) === isBlank(prev.out) && (o.date || '') >= (prev.date || ''));
+      if (better) prev = o;
     });
     if (!prev) return false;
     var changed = false;
@@ -663,20 +710,35 @@
   }
 
   /* ---------- Export: gedeeld ---------- */
-  function checkExportable() {
+  // Geeft de te exporteren ritten terug, of null als er iets mis is.
+  // Ritten zonder heen-km (bijv. geïmporteerde, afgelaste voorstellingen) mogen worden overgeslagen.
+  function exportableTrips() {
     var list = trips();
-    if (!list.length) { toast('Er zijn nog geen ritten in ' + monthLabel(currentYm)); return false; }
-    var bad = list.filter(function (t) { return !dateInMonth(t.date, currentYm) || !isFinite(kmOut(t)) || !backValid(t); });
-    if (!bad.length) return true;
-    Array.prototype.forEach.call($('tripList').children, function (node) {
-      var t = find(node.dataset.id); if (!t) return;
-      updateRow(node, t);
-      node.querySelector('[data-field="out"]').classList.toggle('invalid', !isFinite(kmOut(t)));
+    if (!list.length) { toast('Er zijn nog geen ritten in ' + monthLabel(currentYm)); return null; }
+    var bad = list.filter(function (t) {
+      return !dateInMonth(t.date, currentYm) || (!isBlank(t.out) && !isFinite(kmOut(t))) || !backValid(t);
     });
-    var f = bad[0];
-    flashRow(f.id, !dateInMonth(f.date, currentYm) ? 'date' : !isFinite(kmOut(f)) ? 'out' : 'back');
-    toast(bad.length === 1 ? '1 rit mist een geldige datum of kilometers' : bad.length + ' ritten missen een geldige datum of kilometers');
-    return false;
+    if (bad.length) {
+      var f = bad[0];
+      flashRow(f.id, !dateInMonth(f.date, currentYm) ? 'date' : !backValid(f) ? 'back' : 'out');
+      toast(bad.length === 1 ? '1 rit heeft een ongeldige datum of kilometers' : bad.length + ' ritten hebben een ongeldige datum of kilometers');
+      return null;
+    }
+    var ok = list.filter(function (t) { return isFinite(kmOut(t)); });
+    var missing = list.length - ok.length;
+    if (!ok.length) {
+      flashRow(list[0].id, 'out');
+      toast('Vul eerst de kilometers in');
+      return null;
+    }
+    if (missing && !window.confirm(missing + (missing === 1 ? ' rit heeft' : ' ritten hebben') +
+        ' nog geen kilometers (bijvoorbeeld een afgelaste voorstelling) en ' + (missing === 1 ? 'wordt' : 'worden') +
+        ' niet meegenomen in de export.\n\nDoorgaan?')) {
+      var first = list.filter(function (t) { return !isFinite(kmOut(t)); })[0];
+      flashRow(first.id, 'out');
+      return null;
+    }
+    return ok;
   }
   function download(blob, name) {
     var url = URL.createObjectURL(blob);
@@ -702,8 +764,8 @@
     return n.toLocaleString('nl-NL', { minimumFractionDigits: minDec, maximumFractionDigits: maxDec, useGrouping: false });
   }
   function nlDate(s) { return s.slice(8, 10) + '-' + s.slice(5, 7) + '-' + s.slice(0, 4); }
-  function buildCsv(ym) {
-    var list = state.months[ym] || [], r = monthTotals(list);
+  function buildCsv(ym, list) {
+    var r = monthTotals(list);
     var rows = [
       [title(ym)],
       ['Vertrekadres', state.home],
@@ -719,11 +781,12 @@
     rows.push([]);
     rows.push(['', '', '', 'MAANDTOTAAL', csvNum(r.out, 0, 2), csvNum(r.back, 0, 2), csvNum(r.km, 2, 2), csvNum(r.amount, 2, 2)]);
     rows.push(['', '', '', 'Ingevulde enkele ritten', r.nOut, r.nBack]);
-    return '﻿' + rows.map(function (row) { return row.map(csvField).join(';'); }).join('\r\n') + '\r\n';
+    return '\uFEFF' + rows.map(function (row) { return row.map(csvField).join(';'); }).join('\r\n') + '\r\n';
   }
   function exportCsv() {
-    if (!checkExportable()) return;
-    download(new Blob([buildCsv(currentYm)], { type: 'text/csv;charset=utf-8' }), 'kilometerregistratie-' + currentYm + '.csv');
+    var list = exportableTrips();
+    if (!list) return;
+    download(new Blob([buildCsv(currentYm, list)], { type: 'text/csv;charset=utf-8' }), 'kilometerregistratie-' + currentYm + '.csv');
     markExported();
     toast('CSV gedownload');
   }
@@ -790,8 +853,8 @@
     '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
     '</styleSheet>';
 
-  function buildSheetXml(ym) {
-    var list = state.months[ym] || [], r = monthTotals(list);
+  function buildSheetXml(ym, list) {
+    var r = monthTotals(list);
     var cols = 'ABCDEFGH';
     var rowsXml = [];
     function cell(ref, s, v) {
@@ -852,7 +915,7 @@
       '<pageSetup orientation="landscape" paperSize="9" fitToWidth="1" fitToHeight="0"/>' +
       '</worksheet>';
   }
-  function buildXlsx(ym) {
+  function buildXlsx(ym, list) {
     var files = [
       ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
         '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
@@ -877,7 +940,7 @@
         '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
         '</Relationships>'],
       ['xl/styles.xml', STYLES_XML],
-      ['xl/worksheets/sheet1.xml', buildSheetXml(ym)]
+      ['xl/worksheets/sheet1.xml', buildSheetXml(ym, list)]
     ];
     return zipStore(files);
   }
@@ -920,10 +983,270 @@
     return new Blob(parts.concat(central, [new Uint8Array(end.buffer)]), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
   function exportXlsx() {
-    if (!checkExportable()) return;
-    download(buildXlsx(currentYm), 'kilometerregistratie-' + currentYm + '.xlsx');
+    var list = exportableTrips();
+    if (!list) return;
+    download(buildXlsx(currentYm, list), 'kilometerregistratie-' + currentYm + '.xlsx');
     markExported();
     toast('Excel-bestand gedownload');
+  }
+
+  /* ---------- Import: speellijst (.xlsx / .csv) ---------- */
+  // ZIP lezen; bestanden zijn 'stored' of 'deflate' (uitpakken met de ingebouwde DecompressionStream)
+  function readZip(buf) {
+    var dv = new DataView(buf), u8 = new Uint8Array(buf), eocd = -1, dec = new TextDecoder();
+    for (var i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('Dit is geen geldig Excel-bestand (.xlsx).');
+    var n = dv.getUint16(eocd + 10, true), p = dv.getUint32(eocd + 16, true), entries = {};
+    for (var k = 0; k < n && dv.getUint32(p, true) === 0x02014b50; k++) {
+      var nlen = dv.getUint16(p + 28, true), off = dv.getUint32(p + 42, true), csize = dv.getUint32(p + 20, true);
+      var start = off + 30 + dv.getUint16(off + 26, true) + dv.getUint16(off + 28, true);
+      entries[dec.decode(u8.subarray(p + 46, p + 46 + nlen))] = { method: dv.getUint16(p + 10, true), data: u8.subarray(start, start + csize) };
+      p += 46 + nlen + dv.getUint16(p + 30, true) + dv.getUint16(p + 32, true);
+    }
+    return entries;
+  }
+  function unzipText(e) {
+    if (!e) return Promise.resolve(null);
+    if (e.method === 0) return Promise.resolve(new TextDecoder().decode(e.data));
+    if (e.method !== 8 || typeof DecompressionStream === 'undefined') {
+      return Promise.reject(new Error('Deze browser kan het bestand niet uitpakken. Werk je browser bij of gebruik een CSV-bestand.'));
+    }
+    return new Response(new Blob([e.data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  }
+  function xmlDoc(text) { return new DOMParser().parseFromString(text, 'application/xml'); }
+  function byTag(node, name) { return Array.prototype.slice.call(node.getElementsByTagNameNS('*', name)); }
+  function textOf(node) {
+    return byTag(node, 't').filter(function (t) { return t.parentNode.localName !== 'rPh'; })
+      .map(function (t) { return t.textContent; }).join('');
+  }
+  function colIndex(ref) {
+    var m = /^([A-Z]+)/.exec(ref), n = 0;
+    for (var i = 0; m && i < m[1].length; i++) n = n * 26 + m[1].charCodeAt(i) - 64;
+    return n - 1;
+  }
+  function colName(i) { var s = ''; i++; while (i > 0) { var r = (i - 1) % 26; s = String.fromCharCode(65 + r) + s; i = Math.floor((i - 1) / 26); } return s; }
+
+  // Leest het eerste werkblad als array van rijen (strings en getallen)
+  function readXlsx(buf) {
+    var z = readZip(buf);
+    return Promise.all([unzipText(z['xl/workbook.xml']), unzipText(z['xl/_rels/workbook.xml.rels']), unzipText(z['xl/sharedStrings.xml'])]).then(function (r) {
+      var sheetPath = 'xl/worksheets/sheet1.xml';
+      if (r[0] && r[1]) {
+        var sheet = byTag(xmlDoc(r[0]), 'sheet')[0];
+        var rid = sheet && (sheet.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') || sheet.getAttribute('r:id'));
+        byTag(xmlDoc(r[1]), 'Relationship').forEach(function (rel) {
+          if (rel.getAttribute('Id') !== rid) return;
+          var t = rel.getAttribute('Target').replace(/^\//, '');
+          sheetPath = t.indexOf('xl/') === 0 ? t : 'xl/' + t;
+        });
+      }
+      var shared = r[2] ? byTag(xmlDoc(r[2]), 'si').map(textOf) : [];
+      if (!z[sheetPath]) throw new Error('Geen werkblad gevonden in dit bestand.');
+      return unzipText(z[sheetPath]).then(function (xml) {
+        return byTag(xmlDoc(xml), 'row').map(function (row) {
+          var out = [];
+          byTag(row, 'c').forEach(function (c, idx) {
+            var ref = c.getAttribute('r'), col = ref ? colIndex(ref) : idx;
+            var type = c.getAttribute('t'), v = byTag(c, 'v')[0], val = null;
+            if (type === 's') val = v ? shared[+v.textContent] : null;
+            else if (type === 'inlineStr') val = textOf(c);
+            else if (type === 'str') val = v ? v.textContent : null;
+            else if (!type || type === 'n') val = v ? parseFloat(v.textContent) : null;
+            out[col] = val;
+          });
+          return out;
+        });
+      });
+    });
+  }
+  function parseCsv(text) {
+    text = text.replace(/^﻿/, '');
+    var head = text.split(/\r?\n/).slice(0, 5).join('\n');
+    var delim = [';', '\t', ','].sort(function (a, b) { return head.split(b).length - head.split(a).length; })[0];
+    var rows = [], row = [], field = '', q = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (q) {
+        if (ch === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else q = false; }
+        else field += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === delim) { row.push(field); field = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        row.push(field); rows.push(row); row = []; field = '';
+      } else field += ch;
+    }
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  var MON = { jan: 1, feb: 2, mrt: 3, maa: 3, mar: 3, apr: 4, mei: 5, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, okt: 10, oct: 10, nov: 11, dec: 12 };
+  function mkDate(y, m, d) {
+    if (y < 100) y += 2000;
+    var s = y + '-' + pad(m) + '-' + pad(d);
+    return isValidDate(s) && y > 1990 && y < 2200 ? s : null;
+  }
+  function toDateStr(v) {
+    if (typeof v === 'number') {
+      if (!(v > 25000 && v < 110000)) return null; // Excel-datumgetal (ca. 1968–2200)
+      var d = new Date(Date.UTC(1899, 11, 30) + Math.floor(v + 1e-9) * 86400000);
+      return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
+    }
+    if (typeof v !== 'string') return null;
+    var s = v.trim().toLowerCase(), m;
+    if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s))) return mkDate(+m[1], +m[2], +m[3]);
+    if ((m = /^(?:[a-z]{2,9}\.?,?\s+)?(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2}|\d{4})\b/.exec(s))) return mkDate(+m[3], +m[2], +m[1]);
+    if ((m = /^(?:[a-z]{2,9}\.?,?\s+)?(\d{1,2})\s+([a-z]{3})[a-z]*\.?\s+(\d{2}|\d{4})\b/.exec(s)) && MON[m[2]]) return mkDate(+m[3], MON[m[2]], +m[1]);
+    return null;
+  }
+  function cellText(v) { return v === null || v === undefined ? '' : String(v).trim(); }
+  function normKey(s) { return cellText(s).toLowerCase().replace(/\s+/g, ' '); }
+
+  // Kolommen herkennen: op kopregel ("Datum", "Plaats", "Theater") of anders op inhoud
+  function analyzeRows(rows) {
+    var ncol = rows.reduce(function (n, r) { return Math.max(n, r.length); }, 0);
+    var stats = [], header = {};
+    for (var c = 0; c < ncol; c++) stats.push({ dates: 0, texts: 0, label: '' });
+    rows.forEach(function (r) {
+      var hasDate = false;
+      for (var c = 0; c < ncol; c++) {
+        var v = r[c];
+        if (toDateStr(v)) { stats[c].dates++; hasDate = true; }
+        else if (typeof v === 'string' && v.trim() && !/^[\d.,\s-]+$/.test(v)) stats[c].texts++;
+      }
+      if (!hasDate) {
+        for (var h = 0; h < ncol; h++) {
+          var t = normKey(r[h]);
+          if (!t) continue;
+          if (header.date === undefined && /^(datum|date|dag)/.test(t)) header.date = h;
+          else if (header.place === undefined && /(plaats|stad|woonplaats|city)/.test(t)) header.place = h;
+          else if (header.loc === undefined && /(theater|locatie|zaal|venue|podium|accommodatie)/.test(t)) header.loc = h;
+        }
+      }
+    });
+    var dateCol = header.date, best = 0;
+    if (dateCol === undefined) stats.forEach(function (st, c) { if (st.dates > best) { best = st.dates; dateCol = c; } });
+    var textCols = [];
+    stats.forEach(function (st, c) { if (c !== dateCol && st.texts > 0) textCols.push(c); });
+    var place = header.place !== undefined ? header.place : textCols[0];
+    var loc = header.loc !== undefined ? header.loc : textCols.filter(function (c) { return c !== place; })[0];
+    // Voorbeeldwaarde per kolom (eerste rij met een datum) voor de keuzelijsten
+    var sample = rows.filter(function (r) { return toDateStr(r[dateCol]); })[0] || [];
+    for (var i = 0; i < ncol; i++) stats[i].label = 'Kolom ' + colName(i) + (cellText(sample[i]) ? ' · ' + cellText(sample[i]).slice(0, 28) : '');
+    sample.forEach(function (v, i) { if (typeof v === 'number' && toDateStr(v) && i === dateCol) stats[i].label = 'Kolom ' + colName(i) + ' · ' + nlDate(toDateStr(v)); });
+    return { ncol: ncol, stats: stats, date: dateCol === undefined ? -1 : dateCol, place: place === undefined ? -1 : place, loc: loc === undefined ? -1 : loc };
+  }
+  function existingKeys() {
+    var keys = {};
+    allTrips().forEach(function (t) { keys[t.date + '|' + normKey(t.location || t.place)] = true; });
+    return keys;
+  }
+  function importCandidates(rows, map) {
+    var keys = existingKeys(), seen = {}, out = [];
+    rows.forEach(function (r) {
+      var d = toDateStr(r[map.date]);
+      if (!d) return;
+      var place = map.place >= 0 ? cellText(r[map.place]) : '', loc = map.loc >= 0 ? cellText(r[map.loc]) : '';
+      if (!place && !loc) return;
+      var key = d + '|' + normKey(loc || place);
+      out.push({ date: d, place: place, location: loc, dup: !!(keys[key] || seen[key]) });
+      seen[key] = true;
+    });
+    return out.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  }
+
+  var importState = null;
+  function shortDate(s) { return +s.slice(8, 10) + ' ' + MONTHS_SHORT[+s.slice(5, 7) - 1] + ' ' + s.slice(0, 4); }
+  function openImport(rows, fileName) {
+    var a = analyzeRows(rows);
+    if (a.date < 0) { window.alert('In dit bestand zijn geen datums gevonden. Controleer of het een speellijst is met een kolom met datums.'); return; }
+    importState = { rows: rows };
+    $('impFile').textContent = fileName + ' · ' + rows.length + ' regels';
+    [['mapDate', a.date, false], ['mapPlace', a.place, true], ['mapLoc', a.loc, true]].forEach(function (cfg) {
+      var sel = $(cfg[0]);
+      sel.innerHTML = '';
+      if (cfg[2]) { var none = document.createElement('option'); none.value = '-1'; none.textContent = '(niet gebruiken)'; sel.appendChild(none); }
+      a.stats.forEach(function (st, i) { var o = document.createElement('option'); o.value = i; o.textContent = st.label; sel.appendChild(o); });
+      sel.value = String(cfg[1]);
+    });
+    renderImportPreview();
+    var dlg = $('importDialog');
+    dlg.returnValue = '';
+    if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+  function currentMap() { return { date: +$('mapDate').value, place: +$('mapPlace').value, loc: +$('mapLoc').value }; }
+  function renderImportPreview() {
+    var list = importCandidates(importState.rows, currentMap());
+    importState.list = list;
+    var fresh = list.filter(function (c) { return !c.dup; }), dups = list.length - fresh.length;
+    var perMonth = {};
+    fresh.forEach(function (c) { var k = ymOf(c.date); perMonth[k] = (perMonth[k] || 0) + 1; });
+    var sum = $('impSummary');
+    sum.innerHTML = '';
+    var p = document.createElement('div');
+    p.textContent = list.length
+      ? list.length + ' voorstellingen gevonden (' + shortDate(list[0].date) + ' – ' + shortDate(list[list.length - 1].date) + ').' +
+        (dups ? ' ' + dups + (dups === 1 ? ' staat' : ' staan') + ' er al in en ' + (dups === 1 ? 'wordt' : 'worden') + ' overgeslagen.' : '')
+      : 'Geen voorstellingen gevonden met deze kolomkeuze.';
+    sum.appendChild(p);
+    if (fresh.length) {
+      var ul = document.createElement('ul');
+      Object.keys(perMonth).sort().forEach(function (k) {
+        var li = document.createElement('li'); li.textContent = cap(monthLabel(k)) + ': ' + perMonth[k] + (perMonth[k] === 1 ? ' rit' : ' ritten'); ul.appendChild(li);
+      });
+      sum.appendChild(ul);
+    }
+    var table = document.createElement('table');
+    var thead = table.createTHead().insertRow();
+    ['Datum', 'Plaats', 'Theater / locatie'].forEach(function (h) { var th = document.createElement('th'); th.textContent = h; thead.appendChild(th); });
+    var tb = table.createTBody();
+    list.forEach(function (c) {
+      var tr = tb.insertRow();
+      if (c.dup) { tr.className = 'dup'; tr.title = 'Staat er al in'; }
+      [shortDate(c.date), c.place, c.location].forEach(function (v) { tr.insertCell().textContent = v; });
+    });
+    var prev = $('impPreview'); prev.innerHTML = ''; prev.appendChild(table);
+    var btn = $('impConfirm');
+    btn.disabled = !fresh.length;
+    btn.textContent = fresh.length ? 'Importeer ' + fresh.length + (fresh.length === 1 ? ' rit' : ' ritten') : 'Niets te importeren';
+  }
+  function doImport() {
+    var fresh = (importState.list || []).filter(function (c) { return !c.dup; });
+    if (!fresh.length) return;
+    var months = {}, withKm = 0;
+    fresh.forEach(function (c) {
+      var t = { id: uid(), date: c.date, place: c.place, location: c.location, out: '', back: '' };
+      autofillFromHistory(t);
+      if (!isBlank(t.out)) withKm++;
+      var ym = ymOf(c.date);
+      (state.months[ym] || (state.months[ym] = [])).push(t);
+      months[ym] = true;
+    });
+    Object.keys(months).forEach(function (ym) { sortTrips(state.months[ym]); touch(ym); });
+    save();
+    if (!months[currentYm]) {
+      var firstNow = Object.keys(months).sort().filter(function (k) { return k >= currentYm; })[0];
+      currentYm = firstNow || Object.keys(months).sort()[0];
+    }
+    render();
+    var n = Object.keys(months).length;
+    toast(fresh.length + (fresh.length === 1 ? ' rit' : ' ritten') + ' toegevoegd in ' + n + (n === 1 ? ' maand' : ' maanden') +
+      (withKm ? ' (' + withKm + ' met km van eerdere ritten)' : '') + '. Vul nu de km in.');
+    importState = null;
+  }
+  function handleImportFile(file) {
+    if (!file) return;
+    var name = file.name || 'bestand', lower = name.toLowerCase();
+    var fail = function (e) { window.alert('Importeren mislukt: ' + (e && e.message ? e.message : e)); };
+    if (/\.numbers$/.test(lower)) { fail('open het bestand in Numbers en kies Archief › Exporteer naar › Excel (.xlsx).'); return; }
+    if (/\.xls$/.test(lower)) { fail('dit is een oud Excel-formaat. Sla het bestand op als .xlsx en probeer opnieuw.'); return; }
+    if (/\.(csv|txt)$/.test(lower)) {
+      file.text().then(function (t) { openImport(parseCsv(t), name); }).catch(fail);
+    } else {
+      file.arrayBuffer().then(readXlsx).then(function (rows) { openImport(rows, name); }).catch(fail);
+    }
   }
 
   /* ---------- Toast ---------- */
@@ -984,6 +1307,13 @@
   $('addTrip').addEventListener('click', addTrip);
   $('exportXlsx').addEventListener('click', exportXlsx);
   $('exportCsv').addEventListener('click', exportCsv);
+  $('importBtn').addEventListener('click', function () { $('importFile').click(); });
+  $('importFile').addEventListener('change', function () { var f = this.files && this.files[0]; this.value = ''; handleImportFile(f); });
+  ['mapDate', 'mapPlace', 'mapLoc'].forEach(function (id) { $(id).addEventListener('change', renderImportPreview); });
+  $('importDialog').addEventListener('close', function () {
+    if (this.returnValue === 'import' && importState) doImport();
+    importState = null;
+  });
   $('prevMonth').addEventListener('click', function () { setMonth(shiftMonth(currentYm, -1)); });
   $('nextMonth').addEventListener('click', function () { setMonth(shiftMonth(currentYm, 1)); });
   $('thisMonth').addEventListener('click', function () { setMonth(ymOf(todayStr())); });

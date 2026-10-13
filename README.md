@@ -13,8 +13,9 @@ Een eenvoudige webapp om zakelijke kilometers per maand bij te houden en te expo
    - **Plaats** en **Theater / locatie** (vrij invullen; eerder gebruikte waarden worden voorgesteld). Kies je een theater waar je al eens geweest bent, dan worden plaats en heen-km automatisch ingevuld.
    - **Heen (km)** (verplicht) en eventueel **Retour (km)**. De knop **Retour** zet de retour-km gelijk aan heen; nog een keer klikken haalt de retour weg.
    - Kilometers mogen met komma of punt (`12,5` of `12.5`).
+   - **Speellijst importeren**: kies de speellijst (.xlsx of .csv). De app herkent zelf de kolommen datum, plaats en theater (aan te passen), laat per maand zien wat er bijkomt en zet alle voorstellingen als ritten in de juiste maand. Daarna hoef je alleen de km in te vullen; bij theaters waar je al eerder was gebeurt dat automatisch. Opnieuw importeren (bijv. een bijgewerkte lijst) slaat voorstellingen die er al in staan over. Een `.numbers`-bestand eerst in Numbers exporteren naar Excel.
 4. Totaal km en bedrag per rit en per maand worden automatisch berekend.
-5. Klik op **Exporteer naar Excel / Numbers** voor `kilometerregistratie-JJJJ-MM.xlsx`, opgemaakt zoals de bestaande Numbers-sheet: titel, vertrekadres, Datum · Plaats · Theater / locatie · Vertrekadres · Heen (km) · Retour (km) · Totaal (km) · Bedrag, met onderaan MAANDTOTAAL en het aantal ingevulde enkele ritten. Een platte CSV kan ook (`;`, komma als decimaalteken, UTF-8).
+5. Klik op **Exporteer naar Excel / Numbers** voor `kilometerregistratie-JJJJ-MM.xlsx`, opgemaakt zoals de bestaande Numbers-sheet: titel, vertrekadres, Datum · Plaats · Theater / locatie · Vertrekadres · Heen (km) · Retour (km) · Totaal (km) · Bedrag, met onderaan MAANDTOTAAL en het aantal ingevulde enkele ritten. Ritten zonder km (bijv. een afgelaste voorstelling) worden na bevestiging overgeslagen. Een platte CSV kan ook (`;`, komma als decimaalteken, UTF-8).
 
 ## Waar staat mijn data?
 
